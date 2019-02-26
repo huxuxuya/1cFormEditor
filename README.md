@@ -1,6 +1,6 @@
-# Project Title
+# Модуль модификации управляемы форм
 
-One Paragraph of project description goes here
+Предназначен для доработки типовых конфигураций для ускоренной программной модификации форм
 
 ## Getting Started
 
