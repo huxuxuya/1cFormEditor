@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:DataProcessor xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="2662d2dd-7ddc-457e-ade9-425b10b6c71e">
+  <producedTypes>
+    <objectType typeId="7781c5b4-35b1-4360-94cc-44d2e7b634f3" valueTypeId="db257356-a94b-473b-abbc-e1c78cc6871a"/>
+    <managerType typeId="d71c8159-eb63-4d8d-836d-a4f6c30e42a4" valueTypeId="d5ac8d8f-1e0a-4451-8016-37a648f14966"/>
+  </producedTypes>
+  <name>TestForFormModificator</name>
+  <synonym>
+    <key>ru</key>
+    <value>Test for form modificator</value>
+  </synonym>
+  <useStandardCommands>true</useStandardCommands>
+  <defaultForm>DataProcessor.TestForFormModificator.Form.Форма</defaultForm>
+  <attributes uuid="656a3ea4-0e5d-43d3-ad72-b90f92bb20c5">
+    <name>РеквизитСтрока</name>
+    <synonym>
+      <key>ru</key>
+      <value>Реквизит строка</value>
+    </synonym>
+    <type>
+      <types>String</types>
+      <stringQualifiers>
+        <length>10</length>
+      </stringQualifiers>
+    </type>
+  </attributes>
+  <attributes uuid="c3c85aea-a2c8-4d94-b767-73c17f397d5c">
+    <name>РеквизитБулево</name>
+    <synonym>
+      <key>ru</key>
+      <value>Реквизит булево</value>
+    </synonym>
+    <type>
+      <types>Boolean</types>
+    </type>
+  </attributes>
+  <attributes uuid="c4b95f0f-0ad6-45ec-8b35-fe5e8c5bf982">
+    <name>РеквизитДата</name>
+    <synonym>
+      <key>ru</key>
+      <value>Реквизит дата</value>
+    </synonym>
+    <type>
+      <types>Date</types>
+      <dateQualifiers>
+        <dateFractions>Date</dateFractions>
+      </dateQualifiers>
+    </type>
+  </attributes>
+  <tabularSections uuid="be4a28ab-09c4-43c4-b0f3-8dfec58e32e4">
+    <producedTypes>
+      <objectType typeId="d81049cb-f7db-4966-82b7-63dc165171c5" valueTypeId="7e4220d2-337a-4e6c-bc8e-c4d0abcf14e1"/>
+      <rowType typeId="27186688-a37f-4444-8b7d-099a20ecacf9" valueTypeId="45c6f3c5-567e-4e72-b919-98c3234698be"/>
+    </producedTypes>
+    <name>ТабличнаяЧастьПроверки</name>
+    <synonym>
+      <key>ru</key>
+      <value>Табличная часть проверки</value>
+    </synonym>
+    <attributes uuid="0f897909-2751-4145-8e8d-96c311c4dfb7">
+      <name>РеквизитСтрока</name>
+      <synonym>
+        <key>ru</key>
+        <value>Реквизит строка</value>
+      </synonym>
+      <type>
+        <types>String</types>
+        <stringQualifiers>
+          <length>10</length>
+        </stringQualifiers>
+      </type>
+    </attributes>
+    <attributes uuid="c50247be-e99a-4b62-976c-4d62e3e3c290">
+      <name>РеквизитБулево</name>
+      <synonym>
+        <key>ru</key>
+        <value>Реквизит булево</value>
+      </synonym>
+      <type>
+        <types>Boolean</types>
+      </type>
+    </attributes>
+    <attributes uuid="244fe8a1-b62b-497b-bfe2-1de11a1cd274">
+      <name>РеквизитДата</name>
+      <synonym>
+        <key>ru</key>
+        <value>Реквизит дата</value>
+      </synonym>
+      <type>
+        <types>Date</types>
+        <dateQualifiers>
+          <dateFractions>Date</dateFractions>
+        </dateQualifiers>
+      </type>
+    </attributes>
+  </tabularSections>
+  <forms uuid="7f4189d5-d40e-4b34-9312-bb085564fb62">
+    <name>Форма</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+</mdclass:DataProcessor>

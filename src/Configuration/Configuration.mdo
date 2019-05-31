@@ -30,4 +30,5 @@
     <languageCode>ru</languageCode>
   </languages>
   <commonModules>CommonModule.ккПодготовкаФормСервер</commonModules>
+  <dataProcessors>DataProcessor.TestForFormModificator</dataProcessors>
 </mdclass:Configuration>
