@@ -29,6 +29,6 @@
     </synonym>
     <languageCode>ru</languageCode>
   </languages>
-  <commonModules>CommonModule.ккПодготовкаФормСервер</commonModules>
+  <commonModules>CommonModule.ккПодготовкаФорм</commonModules>
   <dataProcessors>DataProcessor.TestForFormModificator</dataProcessors>
 </mdclass:Configuration>

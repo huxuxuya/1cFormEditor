@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mdclass:CommonModule xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="5c8a88e4-cfe2-44eb-8e74-873759c356f1">
-  <name>ккПодготовкаФормСервер</name>
+  <name>ккПодготовкаФорм</name>
   <synonym>
     <key>ru</key>
     <value>Подготовка форм сервер</value>
