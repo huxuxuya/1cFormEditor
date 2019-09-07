@@ -190,6 +190,16 @@
         </stringQualifiers>
       </type>
     </attributes>
+    <attributes uuid="bc793415-b71d-42fc-bccb-28f990d20c15">
+      <name>Успех</name>
+      <synonym>
+        <key>ru</key>
+        <value>Успех</value>
+      </synonym>
+      <type>
+        <types>Boolean</types>
+      </type>
+    </attributes>
   </tabularSections>
   <forms uuid="7f4189d5-d40e-4b34-9312-bb085564fb62">
     <name>Форма</name>
