@@ -47,6 +47,40 @@
       </dateQualifiers>
     </type>
   </attributes>
+  <attributes uuid="db9a44fe-68d1-4144-ba22-51a4ca79b826">
+    <name>Флажок</name>
+    <synonym>
+      <key>ru</key>
+      <value>Флажок</value>
+    </synonym>
+    <type>
+      <types>Boolean</types>
+    </type>
+  </attributes>
+  <attributes uuid="f183a382-ccb4-4913-bccb-1fca64afefa2">
+    <name>МногострочноеПоле</name>
+    <synonym>
+      <key>ru</key>
+      <value>Многострочное поле</value>
+    </synonym>
+    <type>
+      <types>String</types>
+      <stringQualifiers/>
+    </type>
+  </attributes>
+  <attributes uuid="3c9ad097-3080-4b24-a514-6437edd3e0bf">
+    <name>РеквизитШапки</name>
+    <synonym>
+      <key>ru</key>
+      <value>Реквизит шапки</value>
+    </synonym>
+    <type>
+      <types>String</types>
+      <stringQualifiers>
+        <length>100</length>
+      </stringQualifiers>
+    </type>
+  </attributes>
   <tabularSections uuid="be4a28ab-09c4-43c4-b0f3-8dfec58e32e4">
     <producedTypes>
       <objectType typeId="d81049cb-f7db-4966-82b7-63dc165171c5" valueTypeId="7e4220d2-337a-4e6c-bc8e-c4d0abcf14e1"/>
@@ -91,6 +125,69 @@
         <dateQualifiers>
           <dateFractions>Date</dateFractions>
         </dateQualifiers>
+      </type>
+    </attributes>
+  </tabularSections>
+  <tabularSections uuid="302f9044-82b6-4fef-9186-f46bdcdbcfda">
+    <producedTypes>
+      <objectType typeId="963c9892-4ce5-4720-b00d-c2bebdf6e6af" valueTypeId="21cc3865-fc36-4fa8-8250-f1b162645825"/>
+      <rowType typeId="b5b1430b-8fe8-4004-bb07-9708e6f7bd3f" valueTypeId="5c99d09d-4c2b-487c-9869-dd3113a6e874"/>
+    </producedTypes>
+    <name>ПроверяемыеПроцедурыИФункции</name>
+    <synonym>
+      <key>ru</key>
+      <value>Проверяемые процедуры и функции</value>
+    </synonym>
+    <attributes uuid="af999854-b6ed-4212-acee-3b60ece28deb">
+      <name>ИмяМетода</name>
+      <synonym>
+        <key>ru</key>
+        <value>Имя метода</value>
+      </synonym>
+      <type>
+        <types>String</types>
+        <stringQualifiers>
+          <length>150</length>
+        </stringQualifiers>
+      </type>
+    </attributes>
+    <attributes uuid="de8971c1-ce1f-4725-a54e-001043e22f47">
+      <name>Вызвано</name>
+      <synonym>
+        <key>ru</key>
+        <value>Вызвано</value>
+      </synonym>
+      <type>
+        <types>Number</types>
+        <numberQualifiers>
+          <precision>10</precision>
+        </numberQualifiers>
+      </type>
+    </attributes>
+    <attributes uuid="92a5a027-a554-48c8-89e7-e4e08c0035bc">
+      <name>Проверено</name>
+      <synonym>
+        <key>ru</key>
+        <value>Проверено</value>
+      </synonym>
+      <type>
+        <types>Number</types>
+        <numberQualifiers>
+          <precision>10</precision>
+        </numberQualifiers>
+      </type>
+    </attributes>
+    <attributes uuid="fa76fc67-ccf3-4928-a6ae-efe8ad22f9df">
+      <name>ИмяСозданногоЭлемента</name>
+      <synonym>
+        <key>ru</key>
+        <value>Имя созданного элемента</value>
+      </synonym>
+      <type>
+        <types>String</types>
+        <stringQualifiers>
+          <length>100</length>
+        </stringQualifiers>
       </type>
     </attributes>
   </tabularSections>
