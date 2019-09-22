@@ -81,6 +81,32 @@
       </stringQualifiers>
     </type>
   </attributes>
+  <attributes uuid="2a51bdf1-828b-4289-81ae-fd0aa5c30a21">
+    <name>ВсегоПроцедурИФункций</name>
+    <synonym>
+      <key>ru</key>
+      <value>Всего процедур и функций</value>
+    </synonym>
+    <type>
+      <types>Number</types>
+      <numberQualifiers>
+        <precision>10</precision>
+      </numberQualifiers>
+    </type>
+  </attributes>
+  <attributes uuid="3744bdec-da62-48b0-9963-7f9de680c726">
+    <name>ВсегоУспешных</name>
+    <synonym>
+      <key>ru</key>
+      <value>Всего успешных</value>
+    </synonym>
+    <type>
+      <types>Number</types>
+      <numberQualifiers>
+        <precision>10</precision>
+      </numberQualifiers>
+    </type>
+  </attributes>
   <tabularSections uuid="be4a28ab-09c4-43c4-b0f3-8dfec58e32e4">
     <producedTypes>
       <objectType typeId="d81049cb-f7db-4966-82b7-63dc165171c5" valueTypeId="7e4220d2-337a-4e6c-bc8e-c4d0abcf14e1"/>
