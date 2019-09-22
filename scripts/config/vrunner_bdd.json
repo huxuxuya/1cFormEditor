@@ -1,0 +1,11 @@
+{
+  "default": {
+      "--db-user": "",
+      "--db-pwd": "",
+      "--additional":"/iTaxi"
+    },
+    "vanessa":{
+      "--pathvanessa":"C:/Program Files (x86)/OneScript/lib/vanessa-automation/vanessa-automation.epf",
+      "--vanessasettings":"scripts/config/v8params.json"
+    }
+}
