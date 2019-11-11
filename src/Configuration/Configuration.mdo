@@ -30,6 +30,6 @@
     </synonym>
     <languageCode>ru</languageCode>
   </languages>
-  <commonModules>CommonModule.РедакторФорм</commonModules>
+  <commonModules>CommonModule.ккПодготовкаФорм</commonModules>
   <dataProcessors>DataProcessor.TestForFormModificator</dataProcessors>
 </mdclass:Configuration>
