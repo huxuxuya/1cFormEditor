@@ -1,3 +1,5 @@
+[![Release](https://img.shields.io/github/tag/huxuxuya/FormModificator.svg?label=Last%20release&a)](https://github.com/huxuxuya/FormModificator/releases)
+
 # Модуль модификации управляемы форм
 
 При доработке типовых конфигураций, для уменьшения измержек на сопровождение конфигурации при ее обновлении, доработка форм должна производиться с максимальным приоритетом программной доработки.
