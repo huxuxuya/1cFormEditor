@@ -263,4 +263,3 @@
 ## Authors
 
 See the list of [contributors](https://github.com/huxuxuya/FormModificator/contributors) who participated in this project.
-
