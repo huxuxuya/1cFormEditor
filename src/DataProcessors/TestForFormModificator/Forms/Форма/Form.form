@@ -75,23 +75,6 @@
     </edit>
   </attributes>
   <formCommands>
-    <name>СоздатьКоманду</name>
-    <title>
-      <key>ru</key>
-      <value>Создать команду</value>
-    </title>
-    <id>1</id>
-    <use>
-      <common>true</common>
-    </use>
-    <action xsi:type="form:FormCommandHandlerContainer">
-      <handler>
-        <name>СоздатьКоманду</name>
-      </handler>
-    </action>
-    <currentRowUse>Auto</currentRowUse>
-  </formCommands>
-  <formCommands>
     <name>ДобавитьКнопкуКоманды</name>
     <title>
       <key>ru</key>
