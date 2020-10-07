@@ -282,4 +282,13 @@
     <usePurposes>PersonalComputer</usePurposes>
     <usePurposes>MobileDevice</usePurposes>
   </forms>
+  <forms uuid="47ad6e64-0582-4ddf-9abf-6fabea13939f">
+    <name>ФормаЭталонная</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма эталонная</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
 </mdclass:DataProcessor>
