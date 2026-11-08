@@ -6,6 +6,6 @@
     },
     "vanessa":{
       "--pathvanessa":"C:/Program Files (x86)/OneScript/lib/vanessa-automation/vanessa-automation.epf",
-      "--vanessasettings":"scripts/config/v8params.json"
+      "--vanessasettings":"legacy/vanessa/config/v8params.json"
     }
 }

@@ -1,11 +1,11 @@
 {
-"КаталогФич": "F:\\Users\\FTimokhov\\2019 09\\testManagerProject\\features",
+"КаталогФич": "legacy/vanessa/features",
 "ВыполнитьСценарии": "Истина",
 "ДелатьОтчетВФорматеАллюр": "Истина",
-"КаталогOutputAllureБазовый": "F:\\Users\\FTimokhov\\2019 09\\testManagerOutput\\",
+"КаталогOutputAllureБазовый": ".local/vanessa-output/allure/",
 "ЗавершитьРаботуСистемы": "Истина",
 "ВыгружатьСтатусВыполненияСценариевВФайл": "Истина",
-"ПутьКФайлуДляВыгрузкиСтатусаВыполненияСценариев": "F:\\Users\\FTimokhov\\2019 09\\BuildStatus.log",
+"ПутьКФайлуДляВыгрузкиСтатусаВыполненияСценариев": ".local/vanessa-output/BuildStatus.log",
 "СписокТеговИсключение":[
   "IgnoreOnCIMainBuild",
   "Draft"

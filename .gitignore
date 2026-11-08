@@ -1,5 +1,6 @@
 # Research - local analysis artifacts, not for commit
 research/
+.local/
 
 # OS/metadata
 .DS_Store

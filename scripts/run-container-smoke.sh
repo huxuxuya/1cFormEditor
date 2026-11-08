@@ -53,7 +53,7 @@ if ! find "$PLATFORM_DEB_DIR" -maxdepth 1 -type f -name "$CLIENT_PACKAGE_PATTERN
     exit 2
 fi
 
-[[ -d "$ROOT_DIR/features" ]] || { printf 'ERROR: Не найден каталог features в %s\n' "$ROOT_DIR" >&2; exit 2; }
+[[ -d "$ROOT_DIR/legacy/vanessa/features" ]] || { printf 'ERROR: Не найден каталог legacy/vanessa/features в %s\n' "$ROOT_DIR" >&2; exit 2; }
 mkdir -p "$REPORT_DIR"
 rm -f "$REPORT_DIR"/*
 

@@ -1,5 +1,8 @@
 # FormEditor smoke test in Docker
 
+For the common development and test entry points, see
+[Development and checks](../../docs/development.md).
+
 The container provides OneScript, Vanessa Runner, Vanessa-ADD, and a virtual X11 display (Xvfb). On Apple Silicon, OneScript and .NET run natively in an ARM64 container. The Linux 1C platform is x86_64, so Docker Desktop has to emulate it.
 
 ## Current Apple Silicon limitation
