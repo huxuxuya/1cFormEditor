@@ -116,7 +116,7 @@ else
 fi
 
 [[ -f "$IB_DIR/1Cv8.1CD" ]] || fail 'Платформа не создала файл ИБ 1Cv8.1CD.'
-[[ -f /workspace/project/features/run_full_test.feature ]] || fail 'Не найден features/run_full_test.feature в примонтированном проекте.'
+[[ -f /workspace/project/legacy/vanessa/features/run_full_test.feature ]] || fail 'Не найден legacy/vanessa/features/run_full_test.feature в примонтированном проекте.'
 IBSRV_PATH="$(find /opt/1cv8 -type f -name ibsrv -print -quit 2>/dev/null || true)"
 [[ -n "$IBSRV_PATH" ]] || fail 'Для файловой ИБ и тонкого клиента нужен пакет Linux-платформы с ibsrv.'
 
@@ -128,7 +128,7 @@ xvfb-run -a --server-args='-screen 0 1600x1200x24 -ac' \
       --ibconnection "/F$IB_DIR" \
       --v8version "$PLATFORM_VERSION" \
       --ibsrv \
-      --feature-path /workspace/project/features/run_full_test.feature \
+      --feature-path /workspace/project/legacy/vanessa/features/run_full_test.feature \
       --bddrunner-path /opt/onescript/lib/add/bddRunner.epf \
       --vanessasettings /opt/formeditor/VBParams.json \
       --workspace /workspace/project \

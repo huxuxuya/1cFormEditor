@@ -3,10 +3,10 @@
   "ВерсияПлатформы": "8.5.1",
   "ВыводитьСообщенияВФайл": "/reports/messages.txt",
   "ПутьКVanessaADD": "$instrumentsRoot/../../bddRunner.epf",
-  "КаталогФич": "$workspaceRoot/features/",
+  "КаталогФич": "$workspaceRoot/legacy/vanessa/features/",
   "КаталогиБиблиотек": [
-    "$instrumentsRoot/./features/libraries",
-    "$workspaceRoot/features/step_definitions"
+    "$workspaceRoot/legacy/vanessa/features/libraries",
+    "$workspaceRoot/legacy/vanessa/features/step_definitions"
   ],
   "ВыполнитьСценарии": "Истина",
   "ЗавершитьРаботуСистемы": "Истина",

@@ -96,7 +96,7 @@ pipeline {
             steps {
                 timeout(120) {
                     bat '''@chcp 65001
-                    vrunner vanessa --settings scripts\\config\\vrunner_bdd.json
+                    vrunner vanessa --settings legacy\\vanessa\\config\\vrunner_bdd.json
                     '''
                 }
             }
