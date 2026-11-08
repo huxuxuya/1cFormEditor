@@ -1,0 +1,4 @@
+platform
+*.deb
+*.rpm
+*.distr

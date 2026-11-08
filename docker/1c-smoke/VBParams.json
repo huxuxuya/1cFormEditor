@@ -1,0 +1,33 @@
+{
+  "ИмяСборки": "FormEditor Docker smoke",
+  "ВерсияПлатформы": "8.5.1",
+  "ВыводитьСообщенияВФайл": "/reports/messages.txt",
+  "ПутьКVanessaADD": "$instrumentsRoot/../../bddRunner.epf",
+  "КаталогФич": "$workspaceRoot/features/",
+  "КаталогиБиблиотек": [
+    "$instrumentsRoot/./features/libraries",
+    "$workspaceRoot/features/step_definitions"
+  ],
+  "ВыполнитьСценарии": "Истина",
+  "ЗавершитьРаботуСистемы": "Истина",
+  "ЗакрытьTestClientПослеЗапускаСценариев": "Истина",
+  "ДелатьОтчетВФорматеАллюр": "Истина",
+  "ДелатьОтчетВФорматеjUnit": "Истина",
+  "ДелатьОтчетВФорматеCucumberJson": "Истина",
+  "ДелатьЛогВыполненияСценариевВТекстовыйФайл": "Истина",
+  "ИмяФайлаЛогВыполненияСценариев": "/reports/vanessaonline.txt",
+  "КаталогOutputAllureБазовый": "/reports/allure",
+  "КаталогOutputjUnit": "/reports/junit",
+  "КаталогOutputCucumberJson": "/reports/cucumber",
+  "СоздаватьПодкаталогВКаталогеAllureДляЭтойСборки": "Ложь",
+  "ДелатьСкриншотПриВозникновенииОшибки": "Истина",
+  "КаталогOutputСкриншоты": "/reports/screenshots/",
+  "КомандаСделатьСкриншот": "xwd -root -silent -out ",
+  "ВыгружатьСтатусВыполненияСценариевВФайл": "Истина",
+  "ДобавлятьКИмениСценарияУловияВыгрузки": "Ложь",
+  "ПутьКФайлуДляВыгрузкиСтатусаВыполненияСценариев": "/reports/buildstatus.log",
+  "СписокТеговИсключение": [
+    "IgnoreOnCIMainBuild",
+    "Draft"
+  ]
+}

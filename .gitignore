@@ -1,0 +1,16 @@
+# Research - local analysis artifacts, not for commit
+research/
+
+# OS/metadata
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Build artifacts
+build/
+*.o
+*.so
+*.dylib
+__pycache__/
+*.py[cod]

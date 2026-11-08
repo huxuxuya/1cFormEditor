@@ -291,4 +291,20 @@
     <usePurposes>PersonalComputer</usePurposes>
     <usePurposes>MobileDevice</usePurposes>
   </forms>
+  <forms uuid="9c60b669-3b5a-52d4-ab44-89f492a597d4">
+    <name>ФормаПереименованная</name>
+    <usePurposes>PersonalComputer</usePurposes>
+  </forms>
+  <forms uuid="8defec92-854c-537a-a77f-a239e807a3bf">
+    <name>ФормаНеоднозначная</name>
+    <usePurposes>PersonalComputer</usePurposes>
+  </forms>
+  <forms uuid="409356d4-1354-4d47-ba5a-e0cf91a66ba5">
+    <name>ФормаРегрессии</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма регрессии</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+  </forms>
 </mdclass:DataProcessor>

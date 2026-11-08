@@ -15,6 +15,10 @@
     <event>OnCreateAtServer</event>
     <name>ПриСозданииНаСервере</name>
   </handlers>
+  <handlers>
+    <event>OnOpen</event>
+    <name>ПриОткрытии</name>
+  </handlers>
   <autoTitle>true</autoTitle>
   <autoUrl>true</autoUrl>
   <group>Vertical</group>
@@ -73,6 +77,20 @@
     <edit>
       <common>true</common>
     </edit>
+  </attributes>
+  <attributes>
+    <name>ПротоколАвтотестов</name>
+    <id>4</id>
+    <valueType><types>String</types><stringQualifiers><length>0</length></stringQualifiers></valueType>
+    <view><common>true</common></view>
+    <edit><common>true</common></edit>
+  </attributes>
+  <attributes>
+    <name>ОшибкаПодготовки</name>
+    <id>5</id>
+    <valueType><types>String</types><stringQualifiers><length>0</length></stringQualifiers></valueType>
+    <view><common>true</common></view>
+    <edit><common>true</common></edit>
   </attributes>
   <formCommands>
     <name>ДобавитьКнопкуКоманды</name>
