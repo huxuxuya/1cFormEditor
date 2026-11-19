@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -10,53 +11,73 @@ spec.loader.exec_module(release)
 
 
 class RuntimeReportTest(unittest.TestCase):
-    def write_report(self, path, overrides=None, extra=()):
+    def write_report(self, path, overrides=None, mutate=None):
         overrides = overrides or {}
-        rows = ["Статус | Проверка | Что проверено и фактический результат"]
-        for name in sorted(release.EXPECTED_FORMS | release.EXPECTED_SCENARIOS):
-            status, description = overrides.get(name, ("PASS", "Все условия сценария выполнены."))
-            rows.append(f"{status} | {name} | {description}")
-        rows.extend(extra)
-        path.write_text("\n".join(rows), encoding="utf-8-sig")
+        records = []
+        for item in release.test_report.load_manifest()["scenarios"]:
+            status, error = overrides.get(item["id"], ("PASS", ""))
+            records.append({
+                "id": item["id"], "status": status,
+                "description": item["description"],
+                "expected": "", "actual": "", "error": error,
+            })
+        report = {
+            "schema_version": 1, "suite": "FormEditor",
+            "status": "FAIL" if any(row["status"] == "FAIL" for row in records) else "PASS",
+            "results": records,
+            "totals": {
+                "total": len(records),
+                "passed": sum(row["status"] == "PASS" for row in records),
+                "failed": sum(row["status"] == "FAIL" for row in records),
+            },
+        }
+        if mutate:
+            mutate(report)
+        path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+        return report
 
-    def test_accepts_complete_utf8_report(self):
+    def test_accepts_complete_utf8_json_report(self):
         with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "result.txt"
+            report = Path(temporary) / "results.json"
             self.write_report(report)
             result = release.runtime_result(report)
-            self.assertEqual(result["total"], len(release.EXPECTED_FORMS | release.EXPECTED_SCENARIOS))
+            self.assertEqual(result["total"], 26)
             self.assertEqual(result["passed"], result["total"])
+            self.assertEqual(result["suite_status"], "PASS")
             self.assertEqual(result["new_failures"], [])
 
-    def test_classifies_only_matching_platform_baseline_failure_as_known(self):
+    def test_classifies_known_failure_without_changing_actual_suite_status(self):
         with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "result.txt"
-            signature = "не пройдено условие «Очистка надписи»"
-            self.write_report(report, {"Надпись": ("FAIL", signature)})
-            result = release.runtime_result(report, {"Надпись": {"signature": signature, "issue": 6}})
+            report = Path(temporary) / "results.json"
+            error = "Ошибка регрессионной проверки: Очистка надписи"
+            self.write_report(report, {"Надпись": ("FAIL", error)})
+            result = release.runtime_result(report, {"Надпись": {
+                "signature": "Надпись не пройдено условие «Очистка надписи»", "issue": 6}})
+            self.assertEqual(result["suite_status"], "FAIL")
             self.assertEqual(result["known_failures"], ["Надпись"])
             self.assertEqual(result["new_failures"], [])
+            self.assertEqual(next(row for row in result["results"] if row["id"] == "Надпись")["status"], "FAIL")
 
     def test_new_failure_and_changed_baseline_signature_are_regressions(self):
         with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "result.txt"
-            signature = "не пройдено условие «Очистка надписи»"
+            report = Path(temporary) / "results.json"
+            signature = "Ошибка регрессионной проверки: Очистка надписи"
             self.write_report(report, {
                 "Надпись": ("FAIL", signature),
                 "КонтекстПослеГруппы": ("FAIL", "Несоответствие типов"),
             })
             result = release.runtime_result(
-                report, {"Надпись": {"signature": signature, "issue": 6}})
+                report, {"Надпись": {"signature": "Надпись не пройдено условие «Очистка надписи»", "issue": 6}})
             self.assertEqual([item["id"] for item in result["new_failures"]], ["КонтекстПослеГруппы"])
 
-            self.write_report(report, {"Надпись": ("FAIL", "Другая ошибка")})
+            self.write_report(report, {"Надпись": ("FAIL", "Ошибка регрессионной проверки: Другая ошибка")})
             result = release.runtime_result(
-                report, {"Надпись": {"signature": signature, "issue": 6}})
+                report, {"Надпись": {"signature": "Надпись не пройдено условие «Очистка надписи»", "issue": 6}})
             self.assertEqual([item["id"] for item in result["new_failures"]], ["Надпись"])
 
     def test_resolved_baseline_failure_is_reported(self):
         with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "result.txt"
+            report = Path(temporary) / "results.json"
             self.write_report(report)
             result = release.runtime_result(
                 report, {"Надпись": {"signature": "known failure", "issue": 6}})
@@ -64,11 +85,11 @@ class RuntimeReportTest(unittest.TestCase):
 
     def test_current_arm64_baseline_has_no_new_failures(self):
         with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "result.txt"
+            report = Path(temporary) / "results.json"
             baseline = release.load_runtime_baseline(
                 Path(__file__).with_name("release-baseline.json"), "8.5.1.1529", "arm64")
             overrides = {
-                name: ("FAIL", failure["signature"])
+                name: ("FAIL", failure["signature"].split("не пройдено условие «", 1)[-1].rstrip("»"))
                 for name, failure in baseline["known_failures"].items()
             }
             self.write_report(report, overrides)
@@ -76,23 +97,138 @@ class RuntimeReportTest(unittest.TestCase):
             self.assertEqual(len(result["known_failures"]), 14)
             self.assertEqual(result["new_failures"], [])
             self.assertEqual(result["passed"], 12)
+            self.assertEqual(result["suite_status"], "FAIL")
 
-    def test_rejects_missing_partial_duplicate_and_failed_reports(self):
+    def test_rejects_missing_partial_duplicate_unexpected_and_invalid_reports(self):
         with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "result.txt"
+            report_path = Path(temporary) / "results.json"
             with self.assertRaises(RuntimeError):
-                release.runtime_result(report)
-            self.write_report(report)
-            complete = report.read_text(encoding="utf-8-sig").splitlines()
-            incomplete = [line for line in complete if " | ДинамическийСписок | " not in line]
-            duplicate = complete + [complete[1]]
-            unexpected = complete + ["PASS | НеожиданныйТест | Проверка выполнена."]
-            malformed = complete + ["FAIL | ПустоеОписание |   "]
-            for lines in [[], complete[:1], incomplete, duplicate, unexpected, malformed]:
-                with self.subTest(lines=lines):
-                    report.write_text("\n".join(lines), encoding="utf-8-sig")
+                release.runtime_result(report_path)
+            original = self.write_report(report_path)
+            invalid_reports = []
+            partial = json.loads(json.dumps(original))
+            partial["results"].pop()
+            invalid_reports.append(partial)
+            duplicate = json.loads(json.dumps(original))
+            duplicate["results"].append(duplicate["results"][0])
+            invalid_reports.append(duplicate)
+            unexpected = json.loads(json.dumps(original))
+            unexpected["results"][-1]["id"] = "Unexpected"
+            invalid_reports.append(unexpected)
+            malformed = json.loads(json.dumps(original))
+            del malformed["results"][0]["description"]
+            invalid_reports.append(malformed)
+            wrong_totals = json.loads(json.dumps(original))
+            wrong_totals["totals"]["failed"] = 1
+            invalid_reports.append(wrong_totals)
+            for invalid in invalid_reports:
+                with self.subTest(invalid=invalid):
+                    report_path.write_text(json.dumps(invalid, ensure_ascii=False), encoding="utf-8")
                     with self.assertRaises(RuntimeError):
-                        release.runtime_result(report)
+                        release.runtime_result(report_path)
+
+            report_path.write_text(json.dumps(release.test_report.blocked_report("runtime timeout")), encoding="utf-8")
+            self.assertEqual(release.runtime_result(report_path)["suite_status"], "BLOCKED")
+
+    def test_blocked_report_is_distinct_from_pass_and_has_no_results(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            report = Path(temporary) / "results.json"
+            report.write_text(json.dumps(release.test_report.blocked_report("client did not start")), encoding="utf-8")
+            result = release.runtime_result(report)
+            self.assertEqual(result["suite_status"], "BLOCKED")
+
+
+class UITestReportTest(unittest.TestCase):
+    def report(self, status="PASS", actual="clicked:native-ui-test-value"):
+        scenarios = json.loads((Path(__file__).parent / "ui-scenarios.json").read_text(encoding="utf-8"))["scenarios"]
+        records = [{
+            "id": item["id"],
+            "status": status,
+            "description": item["description"],
+            "expected": "observed result",
+            "actual": actual if status == "PASS" else "",
+            "error": "" if status == "PASS" else "Observed result differs",
+        } for item in scenarios]
+        return {
+            "schema_version": 1,
+            "suite": "FormEditor UI",
+            "status": status,
+            "results": records,
+            "totals": {"total": len(records), "passed": len(records) if status == "PASS" else 0,
+                       "failed": 0 if status == "PASS" else len(records)},
+        }
+
+    def test_validates_actual_input_and_button_result(self):
+        report = release.validate_ui_report(self.report())
+        self.assertEqual(len(report["results"]), 14)
+        self.assertEqual(report["results"][0]["actual"], "clicked:native-ui-test-value")
+
+    def test_ui_failure_remains_a_failure(self):
+        report = self.report("FAIL", actual="")
+        self.assertEqual(release.validate_ui_report(report)["status"], "FAIL")
+
+    def test_ui_failure_screenshot_path_is_restricted_to_its_scenario(self):
+        report = self.report("FAIL", actual="")
+        scenario_id = report["results"][0]["id"]
+        report["results"][0]["screenshot"] = f"screenshots/{scenario_id}.png"
+        self.assertEqual(release.validate_ui_report(report)["results"][0]["screenshot"],
+                         f"screenshots/{scenario_id}.png")
+        report["results"][0]["screenshot"] = "../../etc/passwd"
+        with self.assertRaisesRegex(ValueError, "not allowed"):
+            release.validate_ui_report(report)
+
+    def test_missing_unexpected_or_duplicate_ui_scenarios_are_rejected(self):
+        report = self.report()
+        report["results"][0]["id"] = "UI_StaticControl"
+        with self.assertRaisesRegex(ValueError, "IDs"):
+            release.validate_ui_report(report)
+        report = self.report()
+        report["results"].append(dict(report["results"][0]))
+        report["totals"] = {"total": 2, "passed": 2, "failed": 0}
+        with self.assertRaisesRegex(ValueError, "IDs"):
+            release.validate_ui_report(report)
+
+    def test_invalid_ui_totals_and_status_are_rejected(self):
+        report = self.report()
+        report["totals"]["passed"] = 0
+        with self.assertRaisesRegex(ValueError, "totals"):
+            release.validate_ui_report(report)
+        report = self.report("FAIL", actual="")
+        report["status"] = "PASS"
+        with self.assertRaisesRegex(ValueError, "status"):
+            release.validate_ui_report(report)
+
+    def test_ui_method_inventory_matches_all_common_module_exports(self):
+        rows = release.ui_method_coverage([], Path(__file__).parents[1], "TestClient unavailable")
+        self.assertEqual(len(rows), 22)
+        self.assertEqual(sum(row["required"] for row in rows), 20)
+        self.assertEqual(sum(row["status"] == "NOT_APPLICABLE" for row in rows), 2)
+        self.assertTrue(all(row["status"] == "BLOCKED" for row in rows if row["required"]))
+
+    def test_every_required_export_has_a_scenario_and_direct_or_indirect_relation(self):
+        rows = release.ui_method_coverage([], Path(__file__).parents[1], "blocked")
+        self.assertTrue(all(row["scenario"] and row["relationship"] in {"direct", "indirect"}
+                            for row in rows if row["required"]))
+
+    def test_ui_report_rejects_missing_one_of_the_required_scenarios(self):
+        report = self.report()
+        report["results"].pop()
+        report["totals"]["total"] -= 1
+        report["totals"]["passed"] -= 1
+        with self.assertRaisesRegex(ValueError, "IDs"):
+            release.validate_ui_report(report)
+
+    def test_nonzero_client_exit_blocks_even_with_a_valid_full_report(self):
+        report = {"schema_version": 1, "suite": "FormEditor", "status": "PASS",
+                  "results": [], "totals": {"total": 0, "passed": 0, "failed": 0}}
+        outcome = release.runtime_process_outcome(1, report, "client exited after writing JSON")
+        self.assertEqual(outcome["status"], "BLOCKED")
+        self.assertEqual(outcome["diagnostic_report"], report)
+        self.assertEqual(outcome["diagnostic_report"]["status"], "PASS")
+
+    def test_zero_exit_without_report_is_blocked(self):
+        outcome = release.runtime_process_outcome(0, None)
+        self.assertEqual(outcome["status"], "BLOCKED")
 
 
 class RuntimeBaselineTest(unittest.TestCase):
@@ -102,6 +238,18 @@ class RuntimeBaselineTest(unittest.TestCase):
         self.assertEqual(len(match["known_failures"]), 14)
         self.assertEqual(match["id"], "8.5.1.1529/arm64")
         self.assertEqual(release.load_runtime_baseline(path, "8.5.1.1529", "x86_64")["known_failures"], {})
+
+
+class ModuleNormalizationTest(unittest.TestCase):
+    def test_utf8_and_windows_1251_exports_compare_after_line_ending_normalization(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            utf8 = Path(temporary) / "utf8.bsl"
+            cp1251 = Path(temporary) / "cp1251.bsl"
+            utf8.write_bytes("Процедура Проверка()\nСообщить(\"Надпись\");\n".encode("utf-8-sig"))
+            cp1251.write_bytes("Процедура Проверка()\r\nСообщить(\"Надпись\");\r\n".encode("cp1251"))
+            self.assertEqual(release.normalized_module(utf8), release.normalized_module(cp1251))
+            cp1251.write_bytes("Процедура Проверка()\r\nСообщить(\"Заголовок\");\r\n".encode("cp1251"))
+            self.assertNotEqual(release.normalized_module(utf8), release.normalized_module(cp1251))
 
 
 class EDTReportTest(unittest.TestCase):

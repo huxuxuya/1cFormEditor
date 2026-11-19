@@ -92,6 +92,34 @@
     <view><common>true</common></view>
     <edit><common>true</common></edit>
   </attributes>
+  <attributes>
+    <name>ОтчетАвтотестовJSON</name>
+    <id>6</id>
+    <valueType><types>String</types><stringQualifiers><length>0</length></stringQualifiers></valueType>
+    <view><common>true</common></view>
+    <edit><common>true</common></edit>
+  </attributes>
+  <attributes>
+    <name>UIProbeInputValue</name>
+    <id>7</id>
+    <valueType><types>String</types><stringQualifiers><length>250</length></stringQualifiers></valueType>
+    <view><common>true</common></view>
+    <edit><common>true</common></edit>
+  </attributes>
+  <attributes>
+    <name>UIProbeOutputValue</name>
+    <id>8</id>
+    <valueType><types>String</types><stringQualifiers><length>260</length></stringQualifiers></valueType>
+    <view><common>true</common></view>
+    <edit><common>true</common></edit>
+  </attributes>
+  <attributes>
+    <name>UIProbeFormValue</name>
+    <id>9</id>
+    <valueType><types>String</types><stringQualifiers><length>250</length></stringQualifiers></valueType>
+    <view><common>true</common></view>
+    <edit><common>true</common></edit>
+  </attributes>
   <formCommands>
     <name>ДобавитьКнопкуКоманды</name>
     <title>

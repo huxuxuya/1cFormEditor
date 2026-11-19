@@ -75,7 +75,7 @@
     </edit>
   </attributes>
   <attributes>
-    <name>РезультатыПроверок</name>
+    <name>РезультатыПроверокJSON</name>
     <id>4</id>
     <valueType>
       <types>String</types>

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "methods": [
+    {"method": "ФормаПодготовлена", "scope": "support", "required": false, "scenario": null, "relationship": "not-ui"},
+    {"method": "НовоеПолеФормы", "scope": "interactive-field", "required": true, "scenario": "UI_FieldInput_ButtonClick", "relationship": "direct"},
+    {"method": "НовоеПолеРеквизитаФормы", "scope": "interactive-field", "required": true, "scenario": "UI_FormBoundFieldInput", "relationship": "direct"},
+    {"method": "НоваяГруппаФормы", "scope": "layout", "required": true, "scenario": "UI_GroupVisibility", "relationship": "direct"},
+    {"method": "НоваяГруппаКолонкиЛевоПраво", "scope": "layout", "required": true, "scenario": "UI_GroupVisibility", "relationship": "direct"},
+    {"method": "НоваяГруппаОбычная", "scope": "layout", "required": true, "scenario": "UI_GroupVisibility", "relationship": "direct"},
+    {"method": "НоваяГруппаКнопок", "scope": "layout", "required": true, "scenario": "UI_DirectButtonClick", "relationship": "indirect"},
+    {"method": "НоваяТаблицаФормы", "scope": "interactive-table", "required": true, "scenario": "UI_TableFieldRead", "relationship": "direct"},
+    {"method": "НовоеПолеТабличнойЧастиформы", "scope": "interactive-table-field", "required": true, "scenario": "UI_TableFieldRead", "relationship": "direct"},
+    {"method": "НоваяКнопкаФормы", "scope": "interactive-button", "required": true, "scenario": "UI_DirectButtonClick", "relationship": "direct"},
+    {"method": "НоваяКомандаИГиперссылкаФормы", "scope": "interactive-hyperlink", "required": true, "scenario": "UI_HyperlinkClick", "relationship": "direct"},
+    {"method": "НоваяКомандаИКнопкаКоманднойПанели", "scope": "interactive-button", "required": true, "scenario": "UI_CommandPanelButtonClick", "relationship": "direct"},
+    {"method": "НоваяКомандаИКнопкаФормы", "scope": "interactive-button", "required": true, "scenario": "UI_FieldInput_ButtonClick", "relationship": "direct"},
+    {"method": "НоваяКомандаФормы", "scope": "interactive-command", "required": true, "scenario": "UI_DirectButtonClick", "relationship": "indirect"},
+    {"method": "НовыйРеквизитОбъектаФормы", "scope": "interactive-field", "required": true, "scenario": "UI_ObjectRequisiteCheckbox", "relationship": "direct"},
+    {"method": "НовоеПолеФормыРеквизитОбъекта", "scope": "interactive-field", "required": true, "scenario": "UI_ObjectBoundFieldInput", "relationship": "direct"},
+    {"method": "НовоеПолеШапкиФормыРеквизитОбъекта", "scope": "interactive-field", "required": true, "scenario": "UI_HeaderFieldInput", "relationship": "direct"},
+    {"method": "НовоеМногострочноеПолеРеквизитОбъекта", "scope": "interactive-field", "required": true, "scenario": "UI_MultilineFieldInput", "relationship": "direct"},
+    {"method": "НовоеПолеФлажокФормыРеквизитОбъекта", "scope": "interactive-field", "required": true, "scenario": "UI_CheckboxToggle", "relationship": "direct"},
+    {"method": "НоваяДекорацияНадпись", "scope": "interactive-decoration", "required": true, "scenario": "UI_DecorationVisible", "relationship": "direct"},
+    {"method": "НовыйДинамическийСписокФормы", "scope": "interactive-list-source", "required": true, "scenario": "UI_DynamicListRead", "relationship": "direct"},
+    {"method": "РазложитьСтрокуВМассивПодстрок", "scope": "support", "required": false, "scenario": null, "relationship": "not-ui"}
+  ]
+}

@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl unzip python3 openjdk-17-jre-headless locales \
+    ca-certificates curl unzip python3 python3-pil openjdk-17-jre-headless locales \
     xvfb xauth x11-utils fonts-dejavu-core libgtk-3-0 libwebkit2gtk-4.0-37 \
     libxtst6 libxrender1 libfontconfig1 libnss3 libasound2 libenchant-2-2 \
     libsm6 libice6 libgsf-1-114 libgssapi-krb5-2 \
