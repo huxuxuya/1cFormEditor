@@ -1,0 +1,94 @@
+name: Portable checks
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    name: Python and shell checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tested revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Run portable checks
+        id: checks
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -v > "$RUNNER_TEMP/python-tests.log" 2>&1
+          python_status=$?
+          shell_status=0
+          for shell_script in scripts/run-container-tests.sh scripts/run-container-release.sh; do
+            bash -n "$shell_script"
+            syntax_status=$?
+            if [[ "$syntax_status" -ne 0 && "$shell_status" -eq 0 ]]; then
+              shell_status=$syntax_status
+            fi
+          done
+          cat "$RUNNER_TEMP/python-tests.log"
+          python_count="$(python - "$RUNNER_TEMP/python-tests.log" <<'PY'
+          import re, sys
+          from pathlib import Path
+          text = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+          match = re.search(r"Ran (\d+) tests?", text)
+          print(match.group(1) if match else "unknown")
+          PY
+          )"
+          checked_out_sha="$(git rev-parse HEAD)"
+          printf 'Python unittest exit: %s\nShell syntax exit: %s\n' "$python_status" "$shell_status"
+          printf 'python_exit=%s\nshell_exit=%s\npython_count=%s\nchecked_out_sha=%s\n' \
+            "$python_status" "$shell_status" "$python_count" "$checked_out_sha" >> "$GITHUB_OUTPUT"
+          if [[ "$python_status" -ne 0 || "$shell_status" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Summarize tested revision and scope
+        if: always()
+        env:
+          TESTED_SHA: ${{ steps.checks.outputs.checked_out_sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHECK_OUTCOME: ${{ steps.checks.outcome }}
+          PYTHON_EXIT: ${{ steps.checks.outputs.python_exit }}
+          SHELL_EXIT: ${{ steps.checks.outputs.shell_exit }}
+          PYTHON_COUNT: ${{ steps.checks.outputs.python_count }}
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          config = ET.parse("FormEditor/src/Configuration/Configuration.mdo").getroot()
+          version = next((node.text for node in config.iter()
+                          if node.tag.rsplit("}", 1)[-1] == "version" and node.text), "unknown")
+          tested_sha = os.environ.get("TESTED_SHA", "unknown")
+          pr_head = os.environ.get("PR_HEAD_SHA", "")
+          outcome = os.environ.get("CHECK_OUTCOME", "not-run")
+          python_exit = os.environ.get("PYTHON_EXIT", "not-run")
+          shell_exit = os.environ.get("SHELL_EXIT", "not-run")
+          python_count = os.environ.get("PYTHON_COUNT", "not-run")
+          python_result = "PASS" if python_exit == "0" else "NOT RUN" if python_exit == "not-run" else "FAIL"
+          shell_result = "PASS" if shell_exit == "0" else "NOT RUN" if shell_exit == "not-run" else "FAIL"
+          print("# FormEditor portable CI evidence")
+          print()
+          print(f"- Configuration version: `{version}`")
+          print(f"- Checked-out revision: `{tested_sha}`")
+          if pr_head:
+              print(f"- Pull request head revision: `{pr_head}` (the job tests the checked-out merge revision above)")
+          print(f"- GitHub-hosted runner: `ubuntu-latest`; Python `3.12`")
+          print(f"- Python unit tests: **{python_result}** (`{python_count}` tests); `bash -n` for both owner wrappers: **{shell_result}**; step: `{outcome}`")
+          print("- Scope: portable Python unit tests and `bash -n` only. This workflow does not run EDT, 1C Designer, TestClient, licensed Docker runtime, CF/CFE build, or the release gate.")
+          print("- Full licensed test evidence is produced locally by `scripts/run-container-tests.sh`; review its `reports/aggregate/summary.md` and matching run manifest before associating it with a release.")
+          PY

@@ -2,6 +2,8 @@
 
 # FormEditor
 
+[![Portable checks (Python and shell only)](https://github.com/huxuxuya/1cFormEditor/actions/workflows/portable-checks.yml/badge.svg?branch=master)](https://github.com/huxuxuya/1cFormEditor/actions/workflows/portable-checks.yml)
+
 Библиотека 1С для программного добавления реквизитов, полей, групп, таблиц и
 команд управляемых форм.
 
@@ -35,6 +37,11 @@ python3 -m unittest discover -s tests -v
 ```
 
 Обычный запуск сохраняет JSON, HTML, JUnit XML, текстовый отчёт и логи в новый
-каталог `build/unified-test-run.*`. Ручной режим открывает те же тестовые формы
+каталог `build/unified-test-run.YYYY-MM-DD_HH-MM-SS.*`. Ручной режим открывает те же тестовые формы
 в активном локальном UI. Требования и трактовка статусов описаны в
 [инструкции разработки](docs/development.md).
+
+После первого запуска откройте `build/index.html`: там отдельно собраны история
+тестов, последние отчёты, снимки ошибок и пакеты release-run. Оба runner обновляют
+индекс автоматически; чтобы пересобрать его по уже имеющимся каталогам без Docker,
+выполните `python3 scripts/build_index.py`, затем `open build/index.html`.

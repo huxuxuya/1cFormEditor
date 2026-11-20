@@ -42,6 +42,35 @@ def normalized_module(path):
     return text.replace("\r\n", "\n")
 
 
+def exported_bsl_names(source):
+    """Return exported BSL routine names, including multiline signatures."""
+    names = []
+    declaration = re.compile(r"(?m)^\s*(?:Функция|Процедура)\s+([^\s(]+)\s*\(")
+    for match in declaration.finditer(source):
+        depth = 1
+        in_string = False
+        end = match.end()
+        while end < len(source) and depth:
+            char = source[end]
+            if char == '"':
+                if in_string and end + 1 < len(source) and source[end + 1] == '"':
+                    end += 2
+                    continue
+                in_string = not in_string
+            elif not in_string:
+                if char == "(":
+                    depth += 1
+                elif char == ")":
+                    depth -= 1
+            end += 1
+        if depth:
+            continue
+        suffix = source[end:source.find("\n", end) if "\n" in source[end:] else len(source)]
+        if re.match(r"\s*Экспорт\b", suffix):
+            names.append(match.group(1))
+    return names
+
+
 def validate_ui_report(report):
     if not isinstance(report, dict) or report.get("schema_version") != 1:
         raise ValueError("UI test report has an unsupported schema")
@@ -96,21 +125,27 @@ def ui_method_coverage(records, project, block_reason=None):
         raise ValueError("UI method coverage contains invalid or duplicate method names")
     module_path = project / "FormEditor/src/CommonModules/РедакторФорм/Module.bsl"
     module_text = normalized_module(module_path)
-    exported = re.findall(r"(?m)^\s*(?:Функция|Процедура)\s+([^\s(]+)\s*\([^\n]*\)\s+Экспорт\s*$", module_text)
+    exported = exported_bsl_names(module_text)
     if set(exported) != set(names):
         missing = sorted(set(exported) - set(names))
         stale = sorted(set(names) - set(exported))
         raise ValueError(f"UI method inventory differs from module exports; missing={missing}; stale={stale}")
     known_scenarios = {item["id"] for item in ui_manifest["scenarios"]}
+    runtime_scenarios = {item["id"] for item in test_report.load_manifest()["scenarios"]}
     if any(item.get("required") and item.get("scenario") not in known_scenarios for item in methods):
         raise ValueError("A required UI method has no scenario in tests/ui-scenarios.json")
+    if any(item.get("scope") == "support" and item.get("scenario")
+           and item["scenario"] not in runtime_scenarios for item in methods):
+        raise ValueError("A support method has no scenario in tests/scenarios.json")
     by_id = {item["id"]: item for item in records or []}
     rows = []
     for item in methods:
         scenario_id = item.get("scenario")
         record = by_id.get(scenario_id)
         if not item.get("required"):
-            status, observed = "NOT_APPLICABLE", "helper; no user-interface element"
+            status, observed = "NOT_APPLICABLE", "support method; no user-interface element"
+            if item.get("scope") == "support" and scenario_id:
+                observed += f"; runtime scenario: {scenario_id}"
         elif record is not None:
             status = record["status"]
             observed = record.get("actual") or record.get("error") or ""
@@ -331,6 +366,9 @@ def main():
                         help="permit release with only explicitly recorded baseline failures")
     parser.add_argument("--source-revision", default="unknown")
     parser.add_argument("--source-state", choices=("clean", "dirty", "unknown"), default="unknown")
+    parser.add_argument("--tag", help="release tag to verify against this exact build")
+    parser.add_argument("--tag-target-revision",
+                        help="host-resolved commit SHA for --tag; release.py runs without .git")
     parser.add_argument("--test-only", action="store_true",
                         help="run the same CF/CFE checks and reports without release packaging or source-clean policy")
     parser.add_argument("--retain-bases", action="store_true",
@@ -338,6 +376,10 @@ def main():
     parser.add_argument("--manual", action="store_true",
                         help="retain test bases and open both managed forms on the container's active display")
     args = parser.parse_args()
+    if bool(args.tag) != bool(args.tag_target_revision):
+        parser.error("--tag and --tag-target-revision must be supplied together")
+    if args.tag_target_revision and not re.fullmatch(r"[0-9a-fA-F]{40,64}", args.tag_target_revision):
+        parser.error("--tag-target-revision must be a full Git object SHA")
     if args.manual:
         args.test_only = True
         args.retain_bases = True
@@ -807,6 +849,7 @@ sys.exit(1)
         "dirty": args.source_state == "dirty" if args.source_state != "unknown" else None,
         "platform_version": platform.name,
         "architecture": architecture,
+        "configuration_version": version,
     }
     aggregate = test_report.aggregate_report(target_reports, checks, environment_report)
     test_report.write_reports(aggregate, reports / "aggregate")
@@ -814,6 +857,8 @@ sys.exit(1)
                 "architecture": architecture,
                 "source_revision": args.source_revision,
                 "source_state": args.source_state,
+                "tag": args.tag,
+                "tag_target_revision": args.tag_target_revision,
                 "status": release_status,
                 "release_allowed": release_allowed,
                 "test_status": aggregate["status"],
@@ -829,11 +874,22 @@ sys.exit(1)
                 "elapsed_seconds": round(time.time() - started, 2), "checks": checks,
                 "source_modules": {str(module.relative_to(project)): hashlib.sha256(module.read_bytes()).hexdigest()
                                    for module in modules.values()}}
+    if args.tag:
+        manifest["tag_validation"] = test_report.tag_release_verdict(
+            aggregate, manifest, output, args.tag, args.tag_target_revision)
     if args.test_only:
         manifest["status"] = aggregate["status"]
         manifest["release_allowed"] = False
         manifest["test_only"] = True
+        manifest["artifacts"] = {path.name: {"bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+            for path in (output / "FormEditor.cf", output / "FormEditor.cfe") if path.is_file()}
+        if args.tag:
+            manifest["tag_validation"] = test_report.tag_release_verdict(
+                aggregate, manifest, output, args.tag, args.tag_target_revision)
         (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+        test_report.write_summary(aggregate, reports / "aggregate", manifest, output,
+                                  args.tag, args.tag_target_revision)
         exit_code = {"PASS": 0, "FAIL": 1, "BLOCKED": 2}[aggregate["status"]]
         totals = aggregate["totals"]
         print(f"TEST {aggregate['status']}: {totals['passed']}/{totals['total']} executions passed "
@@ -841,7 +897,15 @@ sys.exit(1)
         return exit_code
     if not built or not extension_verified:
         manifest["status"] = "build-failed"
+        manifest["artifacts"] = {path.name: {"bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+            for path in (output / "FormEditor.cf", output / "FormEditor.cfe") if path.is_file()}
+        if args.tag:
+            manifest["tag_validation"] = test_report.tag_release_verdict(
+                aggregate, manifest, output, args.tag, args.tag_target_revision)
         (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+        test_report.write_summary(aggregate, reports / "aggregate", manifest, output,
+                                  args.tag, args.tag_target_revision)
         return 5
     shutil.copyfile(original_module, output / "РедакторФорм.bsl")
     shutil.copyfile(project / "README.md", output / "README.md")
@@ -850,7 +914,12 @@ sys.exit(1)
     manifest["artifacts"] = {path.name: {"bytes": path.stat().st_size,
         "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
         for path in output.iterdir() if path.is_file()}
+    if args.tag:
+        manifest["tag_validation"] = test_report.tag_release_verdict(
+            aggregate, manifest, output, args.tag, args.tag_target_revision)
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+    test_report.write_summary(aggregate, reports / "aggregate", manifest, output,
+                              args.tag, args.tag_target_revision)
     checksum = "".join(f"{item['sha256']}  {name}\n" for name, item in sorted(manifest["artifacts"].items()))
     (output / "SHA256SUMS").write_text(checksum)
     archive = output.parent / f"FormEditor-{version}{'' if release_allowed else '-rc1'}.zip"

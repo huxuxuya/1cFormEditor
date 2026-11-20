@@ -3,6 +3,7 @@
 
 import argparse
 from html import escape
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -478,7 +479,227 @@ def write_reports(report, output_dir, manifest=None):
     (output_dir / "report.txt").write_text(text_report(report), encoding="utf-8")
     (output_dir / "junit.xml").write_text(junit_report(report), encoding="utf-8")
     (output_dir / "report.html").write_text(html_report(report), encoding="utf-8")
+    if isinstance(report, dict) and "targets" in report:
+        write_summary(report, output_dir)
     return report["status"]
+
+
+def _md_cell(value):
+    if value is None:
+        return "unknown"
+    return (str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace("`", "\\`").replace("|", "\\|").replace("\r", " ").replace("\n", " "))
+
+
+def _artifact_digest(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def tag_release_verdict(report, release_manifest, artifact_dir, tag, tag_target_revision):
+    """Verify the complete report/manifest/tag/package chain before making a release claim."""
+    reasons = []
+    environment = report.get("environment") or {}
+    manifest = release_manifest if isinstance(release_manifest, dict) else {}
+
+    if report.get("status") not in {"PASS", "FAIL"}:
+        reasons.append("aggregate is blocked or incomplete")
+    targets = report.get("targets") or {}
+    if any(targets.get(name, {}).get("status") not in {"PASS", "FAIL"} for name in ("CF", "CFE")):
+        reasons.append("both CF and CFE runtime reports must be complete")
+
+    if not tag:
+        reasons.append("no release tag was supplied")
+    if not release_manifest:
+        reasons.append("release manifest is missing")
+    if manifest.get("test_only"):
+        reasons.append("the run was test-only")
+    if manifest.get("release_allowed") is not True:
+        reasons.append("release_allowed is not true")
+    decision = manifest.get("release_decision") or {}
+    if (manifest.get("status") not in {"verified", "verified_with_baseline"}
+            or decision.get("release_allowed") is not True
+            or decision.get("status") != manifest.get("status")):
+        reasons.append("release decision is missing, inconsistent, or not verified")
+    if manifest.get("tag") != tag or manifest.get("tag_target_revision") != tag_target_revision:
+        reasons.append("tag evidence differs between invocation and co-located release manifest")
+    if manifest.get("source_state") != "clean" or environment.get("dirty") is not False:
+        reasons.append("source tree was not recorded clean in both report and manifest")
+
+    revision = manifest.get("source_revision")
+    if not revision or revision != environment.get("revision"):
+        reasons.append("report and manifest source revisions do not match")
+    if not tag_target_revision or tag_target_revision != revision:
+        reasons.append("tag target does not resolve to the recorded source revision")
+
+    version = manifest.get("version")
+    if not version or version != environment.get("configuration_version"):
+        reasons.append("configuration version differs between report and manifest")
+    if tag and tag != version:
+        reasons.append(f"tag {tag!r} does not exactly match configuration version {version!r}")
+    if manifest.get("platform_version") != environment.get("platform_version"):
+        reasons.append("platform version differs between report and manifest")
+    if manifest.get("architecture") != environment.get("architecture"):
+        reasons.append("architecture differs between report and manifest")
+    if manifest.get("test_status") != report.get("status"):
+        reasons.append("test status differs between report and release manifest")
+    if manifest.get("test_totals") != report.get("totals"):
+        reasons.append("test totals differ between report and release manifest")
+
+    artifact_records = manifest.get("artifacts") or {}
+    artifact_dir = Path(artifact_dir) if artifact_dir else None
+    verified_artifacts = {}
+    for name in ("FormEditor.cf", "FormEditor.cfe"):
+        record = artifact_records.get(name)
+        artifact = artifact_dir / name if artifact_dir else None
+        if not isinstance(record, dict) or not artifact or not artifact.is_file():
+            reasons.append(f"{name} or its manifest digest is missing")
+            continue
+        actual_sha = _artifact_digest(artifact)
+        actual_bytes = artifact.stat().st_size
+        if record.get("sha256") != actual_sha or record.get("bytes") != actual_bytes:
+            reasons.append(f"{name} does not match its recorded SHA256/size")
+        else:
+            verified_artifacts[name] = {"sha256": actual_sha, "bytes": actual_bytes}
+
+    return {
+        "validated": not reasons,
+        "tag": tag,
+        "source_revision": revision,
+        "tag_target_revision": tag_target_revision,
+        "artifacts": verified_artifacts,
+        "reasons": reasons,
+    }
+
+
+def markdown_summary(report, release_manifest=None, artifact_dir=None,
+                     tag=None, tag_target_revision=None):
+    """Render a compact provenance summary; never infer release status from test status."""
+    report = validate_report(report)
+    environment = report.get("environment") or {}
+    manifest = release_manifest if isinstance(release_manifest, dict) else None
+    manifest_matches_report = bool(manifest
+        and manifest.get("source_revision") == environment.get("revision")
+        and manifest.get("source_state") == ("dirty" if environment.get("dirty") is True else "clean"
+                                               if environment.get("dirty") is False else "unknown")
+        and manifest.get("platform_version") == environment.get("platform_version")
+        and manifest.get("architecture") == environment.get("architecture")
+        and manifest.get("test_status") == report.get("status")
+        and manifest.get("test_totals") == report.get("totals"))
+    configuration_version = environment.get("configuration_version")
+    if (not configuration_version or configuration_version == "unknown") and manifest_matches_report:
+        configuration_version = str(manifest.get("version", "unknown")) + " (from matching manifest)"
+    lines = [f"# {report['suite']} validation summary", "",
+             f"**Test outcome: {report['status']}**", "",
+             "| Evidence | Value |", "|---|---|"]
+
+    lines.extend([
+        f"| Configuration version | {_md_cell(configuration_version)} |",
+        f"| Source revision | `{_md_cell(environment.get('revision'))}` |",
+        f"| Source state | {_md_cell('clean' if environment.get('dirty') is False else 'dirty' if environment.get('dirty') is True else 'unknown')} |",
+        f"| 1C platform / architecture | {_md_cell(environment.get('platform_version'))} / {_md_cell(environment.get('architecture'))} |",
+        f"| Runtime suite | {report['totals'].get('passed', 0)}/{report['totals'].get('total', 0)} passed; {report['totals'].get('failed', 0)} failed across {report['totals'].get('scenarios', 0)} scenarios |",
+    ])
+
+    targets = report.get("targets") or {}
+    for target in ("CF", "CFE"):
+        target_report = targets.get(target)
+        if not target_report:
+            continue
+        target_totals = target_report.get("totals", {})
+        outcome = target_report.get("status", "BLOCKED")
+        if outcome == "BLOCKED":
+            detail = target_report.get("block_reason", "runtime report missing")
+            lines.append(f"| {target} runtime | **BLOCKED** — {_md_cell(detail)} |")
+        else:
+            lines.append(f"| {target} runtime | {outcome}: {target_totals.get('passed', 0)}/{target_totals.get('total', 0)} passed; {target_totals.get('failed', 0)} failed |")
+
+    ui_check = next((item for item in report.get("checks", []) if item.get("name") == "ui-cf"), None)
+    if ui_check:
+        ui_status = ui_check.get("suite_status") or ui_check.get("status", "blocked").upper()
+        ui_total = ui_check.get("total", 0)
+        ui_passed = ui_check.get("passed", 0)
+        coverage_total = ui_check.get("coverage_total")
+        coverage_passed = ui_check.get("coverage_passed")
+        ui_value = f"{ui_status}: {ui_passed}/{ui_total} scenarios"
+        if coverage_total is not None:
+            ui_value += f"; method coverage {coverage_passed}/{coverage_total}"
+        lines.append(f"| Native UI (CF) | {ui_value} |")
+
+    checks = report.get("checks", [])
+    known_failures = sum(len(item.get("known_failures", [])) for item in checks)
+    new_failures = sum(len(item.get("new_failures", [])) for item in checks)
+    if any("known_failures" in item or "new_failures" in item for item in checks):
+        lines.append(f"| Release baseline classification | {known_failures} known; {new_failures} new; does not alter test FAIL status |")
+
+    if checks:
+        lines.extend(["", "## Pipeline stages", "", "| Stage | Status | Detail |", "|---|---|---|"])
+        for item in checks:
+            detail = item.get("detail") or item.get("block_reason") or ""
+            lines.append(f"| {_md_cell(item.get('name'))} | {_md_cell(item.get('status'))} | {_md_cell(detail)} |")
+
+    failure_rows = []
+    for target in ("CF", "CFE"):
+        target_report = targets.get(target) or {}
+        target_check = next((item for item in checks if item.get("name") == f"runtime-{target.lower()}"), {})
+        known_ids = set(target_check.get("known_failures", []))
+        for record in target_report.get("results", []):
+            if record.get("status") != "FAIL":
+                continue
+            classification = "known baseline" if record.get("id") in known_ids else "new/unmatched"
+            detail = record.get("error") or record.get("actual") or ""
+            failure_rows.append(f"- `{target}/{_md_cell(record.get('id'))}` ({classification}): {_md_cell(detail)}")
+    ui_failures = []
+    if ui_check:
+        ui_failures = [record for record in ui_check.get("ui_scenarios", [])
+                       if record.get("status") in {"FAIL", "BLOCKED"}]
+        for record in ui_failures:
+            detail = record.get("error") or record.get("actual") or ""
+            failure_rows.append(f"- `UI/{_md_cell(record.get('id'))}` ({_md_cell(record.get('status'))}): {_md_cell(detail)}")
+    if failure_rows:
+        lines.extend(["", "## Failed scenarios", "", *failure_rows])
+
+    if manifest:
+        lines.extend(["", "## Release relationship", ""])
+        if tag:
+            verdict = tag_release_verdict(report, manifest, artifact_dir, tag, tag_target_revision)
+            if verdict["validated"]:
+                lines.append(f"**Validated for release `{_md_cell(tag)}`.** Tag, clean source revision, configuration version, report, release manifest, and CF/CFE SHA256/size agree.")
+            else:
+                lines.append(f"**Tag `{_md_cell(tag)}` is not validated; this is candidate/test evidence only.**")
+                lines.extend(f"- {reason}" for reason in verdict["reasons"])
+        else:
+            lines.append("No release tag was supplied; this report is test/candidate evidence and is not associated with a release tag.")
+        lines.append(f"- Release gate: `{_md_cell(manifest.get('status'))}`; `release_allowed={str(manifest.get('release_allowed')).lower()}`.")
+        artifacts = manifest.get("artifacts") or {}
+        for name in ("FormEditor.cf", "FormEditor.cfe"):
+            item = artifacts.get(name)
+            if isinstance(item, dict):
+                digest = item.get("sha256", "unknown")
+                lines.append(f"- `{name}`: `{_md_cell(digest)}` ({item.get('bytes', 'unknown')} bytes).")
+    else:
+        lines.extend(["", "## Release relationship", "",
+                      "No release manifest is present. This is test evidence only; no release/package claim is made."])
+
+    lines.extend(["", "## Reports", "",
+                  "- [HTML report](report.html)", "- [JUnit report](junit.xml)",
+                  "- [Canonical JSON](results.json)"])
+    return "\n".join(lines) + "\n"
+
+
+def write_summary(report, output_dir, release_manifest=None, artifact_dir=None,
+                  tag=None, tag_target_revision=None):
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    content = markdown_summary(report, release_manifest, artifact_dir, tag,
+                               tag_target_revision)
+    temporary = output_dir / ".summary.md.tmp"
+    temporary.write_text(content, encoding="utf-8")
+    temporary.replace(output_dir / "summary.md")
+    return output_dir / "summary.md"
 
 
 def main(argv=None):
@@ -490,12 +711,21 @@ def main(argv=None):
     parser.add_argument("--aggregate", action="store_true",
                         help="write a complete CF/CFE aggregate for an orchestration block")
     parser.add_argument("--blocked-stage", choices=REQUIRED_RUN_CHECKS, default="container-preflight")
+    parser.add_argument("--source-revision", default="unknown")
+    parser.add_argument("--source-state", choices=("clean", "dirty", "unknown"), default="unknown")
+    parser.add_argument("--product-version", default="unknown")
+    parser.add_argument("--artifact-dir", type=Path)
+    parser.add_argument("--release-manifest", type=Path)
     args = parser.parse_args(argv)
     manifest = load_manifest(args.manifest)
     if args.blocked_reason:
         if args.aggregate:
             report = blocked_aggregate_report(args.blocked_reason, args.blocked_stage,
-                                              manifest=manifest)
+                environment={
+                    "revision": args.source_revision,
+                    "dirty": args.source_state == "dirty" if args.source_state != "unknown" else None,
+                    "configuration_version": args.product_version,
+                }, manifest=manifest)
         else:
             report = blocked_report(args.blocked_reason, suite=manifest["suite"])
     else:
@@ -505,6 +735,11 @@ def main(argv=None):
         if isinstance(report, dict) and "targets" in report:
             rebase_ui_screenshot_links(report, args.input, args.output_dir)
     status = write_reports(report, args.output_dir, manifest)
+    release_manifest = None
+    if args.release_manifest and args.release_manifest.is_file():
+        release_manifest = json.loads(args.release_manifest.read_text(encoding="utf-8-sig"))
+    if args.artifact_dir or release_manifest:
+        write_summary(report, args.output_dir, release_manifest, args.artifact_dir)
     print(f"{status}: reports written to {args.output_dir}")
     return {"PASS": 0, "FAIL": 1, "BLOCKED": 2}[status]
 

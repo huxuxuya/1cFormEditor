@@ -79,6 +79,18 @@
     <id>4</id>
     <valueType><types>DataProcessorObject.TestForFormModificator</types></valueType>
   </attributes>
+  <attributes>
+    <name>РезультатыПроверокJSON</name>
+    <id>5</id>
+    <valueType>
+      <types>String</types>
+      <stringQualifiers>
+        <length>0</length>
+      </stringQualifiers>
+    </valueType>
+    <view><common>true</common></view>
+    <edit><common>true</common></edit>
+  </attributes>
   <formCommands>
     <name>ДобавитьКнопкуКоманды</name>
     <title>

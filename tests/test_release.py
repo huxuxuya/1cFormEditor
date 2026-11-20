@@ -41,7 +41,7 @@ class RuntimeReportTest(unittest.TestCase):
             report = Path(temporary) / "results.json"
             self.write_report(report)
             result = release.runtime_result(report)
-            self.assertEqual(result["total"], 26)
+            self.assertEqual(result["total"], 30)
             self.assertEqual(result["passed"], result["total"])
             self.assertEqual(result["suite_status"], "PASS")
             self.assertEqual(result["new_failures"], [])
@@ -94,9 +94,9 @@ class RuntimeReportTest(unittest.TestCase):
             }
             self.write_report(report, overrides)
             result = release.runtime_result(report, baseline["known_failures"])
-            self.assertEqual(len(result["known_failures"]), 14)
+            self.assertEqual(len(result["known_failures"]), 3)
             self.assertEqual(result["new_failures"], [])
-            self.assertEqual(result["passed"], 12)
+            self.assertEqual(result["passed"], 27)
             self.assertEqual(result["suite_status"], "FAIL")
 
     def test_rejects_missing_partial_duplicate_unexpected_and_invalid_reports(self):
@@ -200,10 +200,40 @@ class UITestReportTest(unittest.TestCase):
 
     def test_ui_method_inventory_matches_all_common_module_exports(self):
         rows = release.ui_method_coverage([], Path(__file__).parents[1], "TestClient unavailable")
-        self.assertEqual(len(rows), 22)
+        self.assertEqual(len(rows), 23)
         self.assertEqual(sum(row["required"] for row in rows), 20)
-        self.assertEqual(sum(row["status"] == "NOT_APPLICABLE" for row in rows), 2)
+        self.assertEqual(sum(row["status"] == "NOT_APPLICABLE" for row in rows), 3)
         self.assertTrue(all(row["status"] == "BLOCKED" for row in rows if row["required"]))
+
+    def test_non_ui_support_methods_are_linked_to_runtime_scenarios(self):
+        rows = release.ui_method_coverage([], Path(__file__).parents[1], "blocked")
+        support = {row["method"]: row for row in rows if row["method"] in {
+            "НовыйКонтекстЭлемента", "ФормаПодготовлена", "РазложитьСтрокуВМассивПодстрок"}}
+        self.assertEqual(set(support), {
+            "НовыйКонтекстЭлемента", "ФормаПодготовлена", "РазложитьСтрокуВМассивПодстрок"})
+        self.assertEqual({row["scenario"] for row in support.values()}, {
+            "КонтекстЭлемента", "ФормаПодготовлена", "РазборСтроки"})
+        self.assertTrue(all(row["relationship"] == "direct" for row in support.values()))
+        self.assertTrue(all("runtime scenario:" in row["observed"] for row in support.values()))
+
+    def test_export_inventory_parser_accepts_multiline_headers_and_defaults(self):
+        source = '''
+Функция Однострочная(Имя, Разделитель = ",") Экспорт
+КонецФункции
+
+Функция НовыйКонтекстЭлемента(Форма,
+    Родитель = Неопределено,
+    СвойстваЭлемента = Новый Структура("Ключ", "значение")) Экспорт
+КонецФункции
+
+Процедура ВнутренняяПодготовка(Значение)
+КонецПроцедуры
+
+Функция ПослеВнутренней(Значение = Новый Структура("Ключ", "значение")) Экспорт
+КонецФункции
+'''
+        self.assertEqual(release.exported_bsl_names(source), [
+            "Однострочная", "НовыйКонтекстЭлемента", "ПослеВнутренней"])
 
     def test_every_required_export_has_a_scenario_and_direct_or_indirect_relation(self):
         rows = release.ui_method_coverage([], Path(__file__).parents[1], "blocked")
@@ -235,7 +265,8 @@ class RuntimeBaselineTest(unittest.TestCase):
     def test_baseline_is_scoped_to_platform_version_and_architecture(self):
         path = Path(__file__).with_name("release-baseline.json")
         match = release.load_runtime_baseline(path, "8.5.1.1529", "arm64")
-        self.assertEqual(len(match["known_failures"]), 14)
+        self.assertEqual(len(match["known_failures"]), 3)
+        self.assertEqual(set(match["known_failures"]), {"ОбщиеПроверки", "ФормаПереименованная", "ФормаНеоднозначная"})
         self.assertEqual(match["id"], "8.5.1.1529/arm64")
         self.assertEqual(release.load_runtime_baseline(path, "8.5.1.1529", "x86_64")["known_failures"], {})
 

@@ -117,6 +117,99 @@ class TestReportValidationTest(unittest.TestCase):
             self.assertIn("&lt;script&gt;", (output / "report.html").read_text(encoding="utf-8"))
             self.assertIn("expected", (output / "report.txt").read_text(encoding="utf-8"))
 
+    def test_aggregate_write_emits_one_summary_with_source_and_outcome(self):
+        report = self.aggregate_inputs()
+        report["environment"].update({
+            "revision": "abc123", "dirty": True,
+            "configuration_version": "1.0.5.1",
+            "platform_version": "8.5.1.1529", "architecture": "arm64",
+        })
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            test_report.write_reports(report, output, self.manifest)
+            summary = (output / "summary.md").read_text(encoding="utf-8")
+            self.assertIn("Test outcome: PASS", summary)
+            self.assertIn("`abc123`", summary)
+            self.assertIn("1.0.5.1", summary)
+            self.assertIn("No release manifest", summary)
+
+    def test_release_tag_summary_requires_matching_clean_source_and_package_hashes(self):
+        report = self.aggregate_inputs()
+        report["environment"].update({
+            "revision": "a" * 40, "dirty": False,
+            "configuration_version": "1.0.5.1",
+            "platform_version": "8.5.1.1529", "architecture": "arm64",
+        })
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            artifacts = output / "artifacts"
+            artifacts.mkdir()
+            cf = artifacts / "FormEditor.cf"
+            cfe = artifacts / "FormEditor.cfe"
+            cf.write_bytes(b"cf-test-artifact")
+            cfe.write_bytes(b"cfe-test-artifact")
+            manifest = {
+                "version": "1.0.5.1", "platform_version": "8.5.1.1529",
+                "architecture": "arm64", "source_revision": "a" * 40,
+                "source_state": "clean", "release_allowed": True,
+                "status": "verified", "tag": "1.0.5.1",
+                "tag_target_revision": "a" * 40,
+                "release_decision": {"status": "verified", "release_allowed": True},
+                "test_status": report["status"],
+                "test_totals": report["totals"], "artifacts": {
+                    path.name: {"bytes": path.stat().st_size,
+                                "sha256": test_report._artifact_digest(path)}
+                    for path in (cf, cfe)
+                },
+            }
+            verdict = test_report.tag_release_verdict(
+                report, manifest, artifacts, "1.0.5.1", "a" * 40)
+            self.assertTrue(verdict["validated"], verdict["reasons"])
+            summary = test_report.markdown_summary(
+                report, manifest, artifacts, "1.0.5.1", "a" * 40)
+            self.assertIn("Validated for release `1.0.5.1`", summary)
+            self.assertIn("FormEditor.cf", summary)
+
+            manifest["artifacts"]["FormEditor.cf"]["sha256"] = "0" * 64
+            verdict = test_report.tag_release_verdict(
+                report, manifest, artifacts, "1.0.5.1", "b" * 40)
+            self.assertFalse(verdict["validated"])
+            failure_text = "\n".join(verdict["reasons"])
+            self.assertIn("tag target", failure_text)
+            self.assertIn("FormEditor.cf", failure_text)
+
+            mismatched = json.loads(json.dumps(manifest))
+            mismatched["version"] = "1.0.5.2"
+            verdict = test_report.tag_release_verdict(
+                report, mismatched, artifacts, "1.0.5.1", "a" * 40)
+            self.assertFalse(verdict["validated"])
+            self.assertTrue(any("version" in reason or "tag" in reason for reason in verdict["reasons"]))
+
+    def test_test_only_and_dirty_reports_never_claim_release_validation(self):
+        report = self.aggregate_inputs()
+        report["environment"].update({
+            "revision": "a" * 40, "dirty": True,
+            "configuration_version": "1.0.5.1",
+            "platform_version": "8.5.1.1529", "architecture": "arm64",
+        })
+        manifest = {
+            "version": "1.0.5.1", "platform_version": "8.5.1.1529",
+            "architecture": "arm64", "source_revision": "a" * 40,
+            "source_state": "dirty", "release_allowed": False,
+            "status": "FAIL", "tag": "1.0.5.1", "tag_target_revision": "a" * 40,
+            "release_decision": {"status": "verified", "release_allowed": True},
+            "test_only": True, "test_status": report["status"],
+            "test_totals": report["totals"], "artifacts": {},
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            verdict = test_report.tag_release_verdict(
+                report, manifest, Path(temporary), "1.0.5.1", "a" * 40)
+            self.assertFalse(verdict["validated"])
+            self.assertTrue(any("test-only" in reason for reason in verdict["reasons"]))
+            summary = test_report.markdown_summary(
+                report, manifest, Path(temporary), "1.0.5.1", "a" * 40)
+            self.assertIn("candidate/test evidence only", summary)
+
     def test_missing_runtime_report_is_blocked_by_cli(self):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaises(FileNotFoundError):
@@ -135,9 +228,9 @@ class TestReportValidationTest(unittest.TestCase):
         report = test_report.aggregate_report({"CF": cf, "CFE": cfe}, checks,
                                               {"revision": "abc123", "dirty": True}, self.manifest)
         self.assertEqual(report["status"], "FAIL")
-        self.assertEqual(report["totals"], {"total": 52, "passed": 50, "failed": 2, "scenarios": 26})
+        self.assertEqual(report["totals"], {"total": 60, "passed": 58, "failed": 2, "scenarios": 30})
         self.assertEqual(report["results"][0]["id"], "CF/СозданиеДемонстрации")
-        self.assertIn("executions passed across 26 scenarios", test_report.text_report(report))
+        self.assertIn("executions passed across 30 scenarios", test_report.text_report(report))
         self.assertEqual(ET.fromstring(test_report.junit_report(report)).attrib["failures"], "2")
         self.assertIn("CF", test_report.html_report(report))
 
@@ -147,7 +240,7 @@ class TestReportValidationTest(unittest.TestCase):
         report = test_report.aggregate_report({"CF": self.report(), "CFE": None}, checks,
                                               {"revision": "abc123", "dirty": False}, self.manifest)
         self.assertEqual(report["status"], "BLOCKED")
-        self.assertEqual(report["totals"]["total"], 26)
+        self.assertEqual(report["totals"]["total"], 30)
         self.assertEqual(report["targets"]["CFE"]["status"], "BLOCKED")
         self.assertIn('type="OrchestrationBlocked"', test_report.junit_report(report))
 
@@ -234,7 +327,7 @@ class TestReportValidationTest(unittest.TestCase):
             "Docker daemon is unavailable", "container-preflight",
             {"revision": "abc123", "dirty": True}, self.manifest)
         self.assertEqual(report["status"], "BLOCKED")
-        self.assertEqual(report["totals"], {"total": 0, "passed": 0, "failed": 0, "scenarios": 26})
+        self.assertEqual(report["totals"], {"total": 0, "passed": 0, "failed": 0, "scenarios": 30})
         self.assertEqual(report["targets"]["CF"]["status"], "BLOCKED")
         self.assertEqual(report["targets"]["CFE"]["status"], "BLOCKED")
         self.assertEqual(next(item for item in report["checks"]

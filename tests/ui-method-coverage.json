@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
   "methods": [
-    {"method": "ФормаПодготовлена", "scope": "support", "required": false, "scenario": null, "relationship": "not-ui"},
+    {"method": "ФормаПодготовлена", "scope": "support", "required": false, "scenario": "ФормаПодготовлена", "relationship": "direct"},
+    {"method": "НовыйКонтекстЭлемента", "scope": "support", "required": false, "scenario": "КонтекстЭлемента", "relationship": "direct"},
     {"method": "НовоеПолеФормы", "scope": "interactive-field", "required": true, "scenario": "UI_FieldInput_ButtonClick", "relationship": "direct"},
     {"method": "НовоеПолеРеквизитаФормы", "scope": "interactive-field", "required": true, "scenario": "UI_FormBoundFieldInput", "relationship": "direct"},
     {"method": "НоваяГруппаФормы", "scope": "layout", "required": true, "scenario": "UI_GroupVisibility", "relationship": "direct"},
@@ -22,6 +23,6 @@
     {"method": "НовоеПолеФлажокФормыРеквизитОбъекта", "scope": "interactive-field", "required": true, "scenario": "UI_CheckboxToggle", "relationship": "direct"},
     {"method": "НоваяДекорацияНадпись", "scope": "interactive-decoration", "required": true, "scenario": "UI_DecorationVisible", "relationship": "direct"},
     {"method": "НовыйДинамическийСписокФормы", "scope": "interactive-list-source", "required": true, "scenario": "UI_DynamicListRead", "relationship": "direct"},
-    {"method": "РазложитьСтрокуВМассивПодстрок", "scope": "support", "required": false, "scenario": null, "relationship": "not-ui"}
+    {"method": "РазложитьСтрокуВМассивПодстрок", "scope": "support", "required": false, "scenario": "РазборСтроки", "relationship": "direct"}
   ]
 }

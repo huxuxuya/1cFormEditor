@@ -10,7 +10,7 @@
 | `FormEditor/` | Актуальный EDT-проект и исходники конфигурации 1С. |
 | `FormEditor/src/CommonModules/РедакторФорм/` | Исходник публичного модуля библиотеки. |
 | `FormEditor/src/DataProcessors/TestForFormModificator/` | Одна встроенная тестовая обработка; формы запускают те же проверки для AUTO и MANUAL. |
-| `tests/` | Python unit tests, `scenarios.json` с 26 runtime ID, UI scenario/method coverage manifests и release baseline. |
+| `tests/` | Python unit tests, `scenarios.json` с 30 runtime ID, UI scenario/method coverage manifests и release baseline. |
 | `scripts/` | Owner runner, release orchestrator, report validator/renderers и build/preparation scripts. |
 | `scripts/run-container-tests.sh` | Единая команда AUTO и `--manual` для CF/CFE suite. |
 | `docker/1c-release/` | Docker entrypoint, EDT export и image для release/test pipeline. |

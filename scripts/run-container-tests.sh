@@ -7,11 +7,13 @@ config="${ONEC_TEST_CONFIG:-$root/.local/unified-testing.json}"
 
 usage() {
     cat <<'EOF'
-Run the FormEditor 26-scenario suite against both CF and CFE in the existing
-licensed container. Results are saved under build/unified-test-run.*/reports/.
+Run the FormEditor 30-scenario suite against both CF and CFE in the existing
+licensed container. Results are saved under build/unified-test-run.DATE-TIME.*/reports/.
+The local navigation page is build/index.html; regenerate it from existing runs
+without Docker with: python3 scripts/build_index.py
 
 Usage: scripts/run-container-tests.sh [--manual] [--help]
-  (default)  Run headless runtime checks and save JSON/text/HTML/JUnit reports.
+  (default)  Run headless checks and save summary/JSON/text/HTML/JUnit reports.
   --manual   Run the same checks, retain both bases, and open both test forms
              in the active container UI (localhost VNC/noVNC URL is printed).
   --help     Show this help.
@@ -31,9 +33,38 @@ case "${1:-}" in
 esac
 
 mkdir -p "$root/build"
-run_dir="$(mktemp -d "$root/build/unified-test-run.XXXXXX")"
+launch_time="$(date '+%Y-%m-%d_%H-%M-%S')"
+run_dir="$(mktemp -d "$root/build/unified-test-run.$launch_time.XXXXXX")"
 reports_dir="$run_dir/reports"
 mkdir -p "$reports_dir"
+
+run_stage="preflight"
+refresh_build_index() {
+    local requested_state="$1" stage="$2" exit_code="${3:-}"
+    local args=(--build-dir "$root/build" --record-run "$run_dir" --state "$requested_state"
+        --stage "$stage" --pid "$$")
+    if [[ -n "$exit_code" ]]; then
+        args+=(--exit-code "$exit_code")
+    fi
+    "$python" "$root/scripts/build_index.py" "${args[@]}" \
+        >/dev/null 2>>"$run_dir/index-update.log" || true
+}
+
+set_run_stage() {
+    run_stage="$1"
+    refresh_build_index RUNNING "$run_stage"
+}
+
+finish_build_index() {
+    local command_status=$?
+    trap - EXIT
+    refresh_build_index AUTO "$run_stage" "$command_status"
+    printf 'Build index: %s\n' "$root/build/index.html" >&2
+    exit "$command_status"
+}
+
+trap finish_build_index EXIT
+refresh_build_index RUNNING "$run_stage"
 
 revision=unknown
 source_state=unknown
@@ -45,6 +76,11 @@ if git -C "$root" rev-parse --verify HEAD >/dev/null 2>&1; then
         source_state=dirty
     fi
 fi
+product_version=unknown
+if [[ -f "$root/FormEditor/src/Configuration/Configuration.mdo" ]]; then
+    product_version="$("$python" -c 'import sys,xml.etree.ElementTree as E; root=E.parse(sys.argv[1]).getroot(); print(next((node.text for node in root.iter() if node.tag.rsplit("}",1)[-1]=="version" and node.text), "unknown"))' \
+        "$root/FormEditor/src/Configuration/Configuration.mdo")"
+fi
 
 config_value() {
     "$python" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get(sys.argv[2], ""))' \
@@ -55,6 +91,8 @@ write_blocked() {
     local stage="$1" reason="$2"
     "$python" "$root/scripts/test_report.py" --aggregate --blocked-stage "$stage" \
         --blocked-reason "$reason" --output-dir "$reports_dir/aggregate" \
+        --source-revision "$revision" --source-state "$source_state" \
+        --product-version "$product_version" \
         >"$run_dir/report-writer.log" 2>&1 || true
     printf 'BLOCKED: %s\nReports: %s\n' "$reason" "$reports_dir/aggregate" >&2
     exit 2
@@ -139,6 +177,7 @@ fi
 cp -R "$edt_config" "$run_dir/edt-config"
 cp "$swt_jar" "$run_dir/swt-linux.jar"
 edt_mounts=(-v "$root:/project:ro" -v "$run_dir:/work" -v "$plugin_pool:/pool:ro")
+set_run_stage "EDT export and validation"
 if ! docker run --rm --entrypoint bash "${edt_mounts[@]}" "$image" \
     /project/docker/1c-release/export-edt.sh export --project /project/FormEditor \
     --configuration-files /work/xml >"$run_dir/edt-export.log" 2>&1; then
@@ -177,6 +216,7 @@ run_args=(--project "$remote_project" --platform-bin "$platform_bin"
 if [[ "$manual" == true ]]; then
     run_args+=(--manual)
 fi
+set_run_stage "CF/CFE runtime and UI tests"
 set +e
 docker exec -e DISPLAY=:99 "$container" python3 "$remote_project/scripts/release.py" "${run_args[@]}" \
     >"$run_dir/container-run.log" 2>&1
@@ -184,6 +224,7 @@ container_exit=$?
 set -e
 
 copy_exit=0
+set_run_stage "Collect and render reports"
 docker cp "$container:$remote_output" "$run_dir/container-output" \
     >"$run_dir/docker-copy.log" 2>&1 || copy_exit=$?
 [[ "$copy_exit" == 0 ]] || write_blocked runtime-cf-cfe \
@@ -195,7 +236,10 @@ aggregate_input="$run_dir/container-output/reports/aggregate/results.json"
 
 set +e
 "$python" "$root/scripts/test_report.py" --input "$aggregate_input" \
-    --output-dir "$reports_dir/aggregate" >"$run_dir/report-validation.log" 2>&1
+    --output-dir "$reports_dir/aggregate" \
+    --artifact-dir "$run_dir/container-output" \
+    --release-manifest "$run_dir/container-output/manifest.json" \
+    >"$run_dir/report-validation.log" 2>&1
 report_exit=$?
 set -e
 if [[ "$report_exit" -gt 2 ]]; then
@@ -216,6 +260,7 @@ if [[ "$container_exit" -gt 2 || "$container_exit" != "$expected_exit" || "$repo
 fi
 
 printf '%s\n' "TEST $status" \
+    "Summary: $reports_dir/aggregate/summary.md" \
     "Report: $reports_dir/aggregate/report.html" \
     "JSON: $reports_dir/aggregate/results.json" \
     "Container output and bases: $run_dir/container-output" \
