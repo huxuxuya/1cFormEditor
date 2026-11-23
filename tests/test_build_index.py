@@ -184,11 +184,12 @@ class BuildIndexTest(unittest.TestCase):
 
         release_root = Path(self.temp.name) / "release-repository"
         (release_root / "scripts").mkdir(parents=True)
-        (release_root / "docker/1c-release").mkdir(parents=True)
+        docker_dir = release_root / "docker/1c-release"
+        docker_dir.mkdir(parents=True)
+        (docker_dir / "Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
         for source, target in (
             (ROOT / "scripts/run-container-release.sh", release_root / "scripts/run-container-release.sh"),
             (ROOT / "scripts/build_index.py", release_root / "scripts/build_index.py"),
-            (ROOT / "docker/1c-release/Dockerfile", release_root / "docker/1c-release/Dockerfile"),
         ):
             shutil.copy2(source, target)
         release_env = dict(env, ONEC_PACKAGE_DIR=str(Path(self.temp.name) / "empty-packages"),
@@ -197,6 +198,7 @@ class BuildIndexTest(unittest.TestCase):
         release_result = subprocess.run(["bash", str(release_root / "scripts/run-container-release.sh")],
                                         cwd=release_root, env=release_env, text=True, capture_output=True)
         self.assertEqual(release_result.returncode, 3, release_result.stderr)
+        self.assertIn(f"Missing common package in {release_env['ONEC_PACKAGE_DIR']}", release_result.stderr)
         release_runs = list((release_root / "build").glob("release-run.*"))
         self.assertEqual(len(release_runs), 1)
         self.assertRegex(release_runs[0].name, r"^release-run\.\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d\.[A-Za-z0-9]+$")
